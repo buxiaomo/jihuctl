@@ -1,0 +1,76 @@
+global
+    description Internal Load Balancer
+    daemon
+    log /dev/log	local0
+    log /dev/log	local1 notice
+    user haproxy
+    group haproxy
+    pidfile /var/run/haproxy.pid # pidfiles
+    # Performance Settings
+    spread-checks 2
+    max-spread-checks 5s
+
+
+defaults
+    log global # inherit global log params
+    mode tcp # default proxy mode
+    default-server inter 2s fall 2 rise 3 maxqueue 20 on-marked-down shutdown-sessions
+    balance leastconn # scheduling mode
+    # HTTP settings
+    option tcplog
+    option clitcpka # enable the sending of TCP keepalive packets on the client side
+    option srvtcpka # enable the sending of TCP keepalive packets on the server side
+    option dontlognull # disable logging of null connections
+    # TCP settings
+    option log-health-checks # log health checks
+    option redispatch 2 # redispatch interval 2s
+    retries 3
+    timeout client 8h
+    timeout client-fin 10s
+    timeout server 8h
+    timeout server-fin 10s
+    timeout connect 2s # time to wait for a connection attempt to a server to succeed
+    # If no available servers return
+    errorfile 400 /etc/haproxy/errors/400.http
+    errorfile 403 /etc/haproxy/errors/403.http
+    errorfile 408 /etc/haproxy/errors/408.http
+    errorfile 500 /etc/haproxy/errors/500.http
+    errorfile 502 /etc/haproxy/errors/502.http
+    errorfile 503 /etc/haproxy/errors/503.http
+    errorfile 504 /etc/haproxy/errors/504.http
+
+frontend https-in
+    bind *:80
+    # bind *:443 ssl crt /etc/haproxy/ssl/gitlab.example.com.pem
+    http-request redirect scheme https unless { ssl_fc }
+    default_backend gitlab-rails
+
+backend gitlab-rails
+    option httpchk GET /-/readiness
+{% for host in groups['rails'] %}
+    server {{ hostvars[host].ansible_hostname }} {{ host }}:80 check
+{% endfor %}
+
+# frontend gitlab-ssh-in
+#     bind *:22
+#     mode tcp
+#     option tcplog
+#     option clitcpka
+#     default_backend gitlab-rails-ssh
+# 
+# backend gitlab-rails-ssh
+#     mode tcp
+#     balance source
+#     option splice-auto
+#     hash-type consistent
+#     option httpchk GET /-/health
+# {% for host in groups['rails'] %}
+#     server {{ hostvars[host].ansible_hostname }} {{ host }}:22 weight 100 check port 80
+# {% endfor %}
+
+listen stats
+    bind *:1936
+    mode http
+    stats enable
+    stats uri /
+    stats refresh 10s

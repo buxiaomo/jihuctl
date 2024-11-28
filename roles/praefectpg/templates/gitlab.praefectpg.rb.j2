@@ -1,0 +1,34 @@
+# Disable all components except PostgreSQL and Consul
+roles(['postgres_role', 'consul_role'])
+
+# PostgreSQL configuration
+postgresql['listen_address'] = '0.0.0.0'
+
+# Prevent database migrations from running on upgrade automatically
+gitlab_rails['auto_migrate'] = false
+
+# Configure the Consul agent
+## Enable service discovery for Prometheus
+consul['monitoring_service_discovery'] =  true
+
+# START user configuration
+# Please set the real values as explained in Required Information section
+#
+# Replace PRAEFECT_POSTGRESQL_PASSWORD_HASH with a generated md5 value
+postgresql['sql_user_password'] = "{{ auth.praefectpg.praefect.md5 }}"
+
+# Replace XXX.XXX.XXX.XXX/YY with Network Address
+postgresql['trust_auth_cidr_addresses'] = %w(192.168.0.0/16 127.0.0.1/32)
+
+# Set the network addresses that the exporters will listen on for monitoring
+node_exporter['listen_address'] = '0.0.0.0:9100'
+postgres_exporter['listen_address'] = '0.0.0.0:9187'
+
+## The IPs of the Consul server nodes
+## You can also use FQDNs and intermix them with IPs
+consul['node_name'] = '{{ ansible_hostname }}'
+consul['configuration'] = {
+   retry_join: %w({{ groups['consul'] | join(' ') }}),
+}
+#
+# END user configuration

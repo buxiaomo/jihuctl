@@ -1,0 +1,27 @@
+# Disable all components except Pgbouncer and Consul agent
+roles(['pgbouncer_role'])
+
+# Configure PgBouncer
+pgbouncer['admin_users'] = %w(pgbouncer gitlab-consul)
+pgbouncer['users'] = {
+   'gitlab-consul': {
+      password: '{{ auth.postgres.gitlab_consul.md5 }}'
+   },
+   'pgbouncer': {
+      password: '{{ auth.postgres.pgbouncer.md5 }}'
+   }
+}
+
+# Configure Consul agent
+consul['watchers'] = %w(postgresql)
+consul['node_name'] = '{{ ansible_hostname }}'
+consul['configuration'] = {
+  retry_join: %w({{ groups['consul'] | join(' ') }})
+}
+
+# Enable service discovery for Prometheus
+consul['monitoring_service_discovery'] = true
+
+# Set the network addresses that the exporters will listen on
+node_exporter['listen_address'] = '0.0.0.0:9100'
+pgbouncer_exporter['listen_address'] = '0.0.0.0:9188'

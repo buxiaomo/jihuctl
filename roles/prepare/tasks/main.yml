@@ -1,0 +1,38 @@
+---
+# tasks file for prepare
+- name: Set OS dependent variables
+  include_vars: "{{ ansible_distribution_file_variety }}.yml"
+
+- name: Distribution gitlab-jh package
+  ansible.builtin.copy:
+    src: "{{ filename }}"
+    dest: "/usr/local/src/{{ filename }}"
+    owner: root
+    group: root
+    mode: 0644
+
+- name: Install gitlab-jh
+  include_tasks: "{{ ansible_distribution_file_variety }}.yml"
+
+- name: Distribution gitlab-jh configure
+  ansible.builtin.template:
+    src: "gitlab.rb.j2"
+    dest: "/etc/gitlab/gitlab.rb"
+    owner: root
+    group: root
+    mode: 0600
+
+
+- name: Checking skip-auto-reconfigure file
+  ansible.builtin.stat:
+    path: /etc/gitlab/gitlab.ext.rb
+  register: gitlabExt
+
+- name: Distribution gitlab-jh ext configure
+  ansible.builtin.template:
+    src: "gitlab.ext.rb.j2"
+    dest: "/etc/gitlab/gitlab.ext.rb"
+    owner: root
+    group: root
+    mode: 0600
+  when: not gitlabExt.stat.exists

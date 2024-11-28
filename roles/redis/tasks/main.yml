@@ -1,0 +1,54 @@
+---
+# tasks file for redis
+- name: Setup GitLab redis
+  template:
+    src: gitlab.redis.rb.j2
+    dest: /etc/gitlab/gitlab.redis.rb
+  register: gitlab_redis_rb_file
+  when:
+    - inventory_hostname in groups['redis']
+
+- name: Setup GitLab redis sentinel
+  template:
+    src: gitlab.sentinel.rb.j2
+    dest: /etc/gitlab/gitlab.sentinel.rb
+  register: gitlab_sentinel_rb_file
+  when:
+    - inventory_hostname in groups['sentinel']
+
+- name: Checking local gitlab-secrets.json file
+  ansible.builtin.stat:
+    path: /usr/local/src/gitlab-secrets.json
+  register: LocalgitlabSecrets
+  delegate_to: "{{ groups['redis'][0] }}"
+  run_once: true
+
+- name: Reconfiugre service
+  shell: gitlab-ctl reconfigure
+  delegate_to: "{{ groups['redis'][0] }}"
+  run_once: true
+  when: LocalgitlabSecrets.stat.exists
+
+- name: Fetch gitlab-secrets.json file
+  ansible.builtin.fetch: 
+    src: /etc/gitlab/gitlab-secrets.json
+    dest: /usr/local/src/gitlab-secrets.json
+    flat: yes
+  delegate_to: "{{ groups['redis'][0] }}"
+  run_once: true
+
+- name: Distribution gitlab-secrets.json file
+  ansible.builtin.copy:
+    src: /usr/local/src/gitlab-secrets.json
+    dest: /etc/gitlab/gitlab-secrets.json
+  register: gitlab_secrets_file
+
+- name: Reconfiugre GitLab redis
+  ansible.builtin.shell: gitlab-ctl reconfigure
+  when:
+    - inventory_hostname in groups['redis']  and (gitlab_redis_rb_file.changed or gitlab_secrets_file.changed)
+
+- name: Reconfiugre GitLab redis sentinel
+  ansible.builtin.shell: gitlab-ctl reconfigure
+  when:
+    - inventory_hostname in groups['sentinel'] and (gitlab_sentinel_rb_file.changed or gitlab_secrets_file.changed)

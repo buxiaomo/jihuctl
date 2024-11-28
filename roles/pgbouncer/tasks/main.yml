@@ -1,0 +1,29 @@
+---
+# tasks file for pgbouncer
+- name: Create configure files
+  template:
+    src: gitlab.pgbouncer.rb.j2
+    dest: /etc/gitlab/gitlab.pgbouncer.rb
+  register: gitlab_rb_file
+
+- name: "Distribution gitlab-secrets.json file"
+  ansible.builtin.copy:
+    src: /usr/local/src/gitlab-secrets.json
+    dest: /etc/gitlab/gitlab-secrets.json
+  register: gitlab_secrets_file
+
+- name: Reconfiugre service
+  ansible.builtin.shell: gitlab-ctl reconfigure
+  when: gitlab_rb_file.changed or gitlab_secrets_file.changed
+
+- name: Create .pgpass file
+  command: gitlab-ctl write-pgpass --host 127.0.0.1 --database pgbouncer --user pgbouncer --hostuser gitlab-consul
+  args:
+    stdin: "{{ auth.postgres.gitlab_consul.password }}\n{{ auth.postgres.gitlab_consul.password }}\n"
+    creates: /var/opt/gitlab/consul/.pgpass
+
+- name: Restart pgbouncer
+  command: gitlab-ctl restart pgbouncer
+
+- name: Hup consul
+  command: gitlab-ctl hup consul

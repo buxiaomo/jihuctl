@@ -1,0 +1,13 @@
+# OSX files
+.DS_Store
+.idea
+__pycache__
+
+scripts/src/*
+roles/prepare/files/*
+
+inventory/*.ini
+
+tests/terraform/.terraform
+*.tfstate
+*.tfstate.backup

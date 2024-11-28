@@ -1,0 +1,35 @@
+external_url: "http://git.cn.svc.example.com"
+
+redis:
+  exporter: true
+  password: "gIBSEHgRjQ6wr6MM"
+
+ha:
+  type: slb
+  vip: 172.16.115.10
+  mask: 16
+
+
+auth:
+  patroni:
+    username: gitlab
+    password: password
+  postgres:
+    gitlab: 
+      password: zECOFbBBI3QWXk8d
+      md5: c94ae e6878abc112bf04bf04b8f0f251
+    gitlab_replicator: 
+      password: Ml7G5MOB0G6JwxzQ
+      md5: f512c7b040fcb95e2c5e42eeb1dbb909
+    pgbouncer: 
+      password: eF3lRmOfsaXm8PD2
+      md5: b315735e51a29faa3cd6ba818d595133
+    gitlab_consul: 
+      password: OrTEjk8QhTSzH5IP
+      md5: 8d77045e4f41fe718cf51748c935527c
+  praefectpg:
+    praefect:
+      password: 0S1jRChfkPbw4mZs
+      md5: b5521c920b54787b25ea1f93a5c7c997
+  praefect:
+    token: 030iVNyfv047CfnA

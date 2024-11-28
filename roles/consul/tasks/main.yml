@@ -1,0 +1,30 @@
+---
+# tasks file for consul
+- name: Create configure files
+  template:
+    src: gitlab.consul.rb.j2
+    dest: /etc/gitlab/gitlab.consul.rb
+  register: gitlab_rb_file
+
+- name: Distribution gitlab-secrets.json file
+  ansible.builtin.copy:
+    src: /usr/local/src/gitlab-secrets.json
+    dest: /etc/gitlab/gitlab-secrets.json
+  register: gitlab_secrets_file
+
+- name: Reconfiugre service
+  shell: gitlab-ctl reconfigure
+  when: gitlab_rb_file.changed or gitlab_secrets_file.changed
+
+- name: Restart service
+  shell: gitlab-ctl restart
+  when: gitlab_rb_file.changed or gitlab_secrets_file.changed
+  # when: inventory_hostname != groups['consul'][0]
+
+- name: Waiting alive
+  ansible.builtin.shell: /opt/gitlab/embedded/bin/consul members
+  register: waiting
+  until: waiting.rc == 0 and waiting.stdout.find(ansible_hostname) != -1
+  retries: 15
+  delay: 5
+  changed_when: false

@@ -1,0 +1,9 @@
+roles ['redis_sentinel_role']
+redis['enable'] = false
+redis['master_name'] = 'gitlab-redis'
+redis['master_ip'] = '{{ groups['redis'][0] }}'
+redis['port'] = 6379
+redis['master_password'] = '{{ redis.password }}'
+sentinel['bind'] = '0.0.0.0'
+sentinel['quorum'] = 2
+gitlab_rails['auto_migrate'] = false

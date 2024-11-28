@@ -1,0 +1,24 @@
+{% if groups['redis'][0] == inventory_hostname %}
+roles ['redis_master_role']
+{% else %}
+roles ['redis_replica_role']
+{% endif %}
+
+redis['bind'] = '0.0.0.0'
+redis['port'] = 6379
+sentinel['quorum'] = 2
+
+redis['master_name'] = 'gitlab-redis'
+redis['master_ip'] = '{{ groups['redis'][0] }}'
+redis['password'] = '{{ redis.password }}'
+redis['master_password'] = '{{ redis.password }}'
+
+redis_exporter['flags'] = {
+  'redis.addr' => "redis://{{ inventory_hostname }}:6379",
+  'redis.password' => '{{ redis.password }}',
+}
+
+gitlab_rails['auto_migrate'] = false
+node_exporter['listen_address'] = '0.0.0.0:9100'
+redis_exporter['listen_address'] = '0.0.0.0:9121'
+consul['monitoring_service_discovery'] =  true

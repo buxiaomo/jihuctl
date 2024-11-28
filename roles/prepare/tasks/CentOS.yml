@@ -1,0 +1,4 @@
+- name: Install Gitlab JH
+  ansible.builtin.yum:
+    name: "/usr/local/src/{{ filename }}"
+    state: present

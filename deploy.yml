@@ -1,0 +1,88 @@
+---
+- name: Base environment configuration
+  hosts: gitlab
+  gather_facts: true
+  become: true
+  any_errors_fatal: true
+  roles:
+    - prepare
+
+- name: Deployment loadbalancer
+  hosts: lb
+  become: true
+  gather_facts: true
+  any_errors_fatal: true
+  roles:
+    - haproxy
+
+- name: Deployment redis
+  hosts: redis sentinel
+  become: true
+  gather_facts: true
+  any_errors_fatal: true
+  roles:
+    - redis
+
+- name: Deployment consul
+  hosts: consul
+  become: true
+  gather_facts: true
+  any_errors_fatal: true
+  roles:
+    - consul
+
+- name: Deployment postgresql
+  hosts: postgresql
+  become: true
+  gather_facts: true
+  any_errors_fatal: true
+  roles:
+    - postgresql
+
+# - name: Deployment pgbouncer
+#   hosts: pgbouncer
+#   become: true
+#   gather_facts: true
+#   any_errors_fatal: true
+#   roles:
+#     - pgbouncer
+
+# - name: Deployment praefectpg
+#   hosts: praefectpg
+#   become: true
+#   gather_facts: true
+#   any_errors_fatal: true
+#   roles:
+#     - praefectpg
+
+# - name: Deployment praefect
+#   hosts: praefect
+#   become: true
+#   gather_facts: true
+#   any_errors_fatal: true
+#   roles:
+#     - praefect
+
+# - name: Deployment gitaly
+#   hosts: gitaly
+#   become: true
+#   gather_facts: true
+#   any_errors_fatal: true
+#   roles:
+#     - gitaly
+
+# - name: Deployment sidekiq
+#   hosts: sidekiq
+#   become: true
+#   gather_facts: true
+#   any_errors_fatal: true
+#   roles:
+#     - sidekiq
+
+# - name: Deployment rails
+#   hosts: rails
+#   become: true
+#   gather_facts: true
+#   any_errors_fatal: true
+#   roles:
+#     - rails

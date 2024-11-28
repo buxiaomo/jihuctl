@@ -1,0 +1,69 @@
+{% if external_url is defined %}
+external_url '{{ external_url }}'
+{% else %}
+external_url 'http://{{ groups['elb'][0] }}'
+{% endif %}
+roles(['application_role'])
+
+# git_data_dirs get configured for the Praefect virtual storage
+# Address is Internal Load Balancer for Praefect
+# Token is praefect_external_token
+git_data_dirs({
+  "default" => {
+    "gitaly_address" => "tcp://{{ groups['ilb'][0] }}:2305", # internal load balancer IP
+    "gitaly_token" => '{{ auth.praefect.token }}'
+  }
+})
+
+## Disable components that will not be on the GitLab application server
+gitaly['enable'] = false
+sidekiq['enable'] = false
+
+## PostgreSQL connection details
+# Disable PostgreSQL on the application node
+postgresql['enable'] = false
+gitlab_rails['db_host'] = '{{ groups['ilb'][0] }}' # internal load balancer IP
+gitlab_rails['db_port'] = 6432
+gitlab_rails['db_password'] = '{{ auth.postgres.gitlab.password }}'
+gitlab_rails['db_load_balancing'] = { 'hosts' => [{% for host in groups['pgbouncer'] %}'{{ host }}'{% if not loop.last %},{% endif %}{% endfor %}] } # PostgreSQL IPs
+
+
+
+# Prevent database migrations from running on upgrade automatically
+gitlab_rails['auto_migrate'] = false
+
+## Redis connection details
+## Must be the same in every sentinel node
+redis['master_name'] = 'gitlab-redis'
+
+## The same password for Redis authentication you set up for the Redis primary node.
+redis['master_password'] = '{{ redis.password }}'
+
+## A list of sentinels with `host` and `port`
+gitlab_rails['redis_sentinels'] = [
+{% for host in groups['sentinel'] %}
+   {'host' => '{{ host }}', 'port' => 26379},
+{% endfor %}
+]
+
+## Enable service discovery for Prometheus
+consul['enable'] = true
+consul['monitoring_service_discovery'] =  true
+
+# Set the network addresses that the exporters used for monitoring will listen on
+node_exporter['listen_address'] = '0.0.0.0:9100'
+gitlab_workhorse['prometheus_listen_addr'] = '0.0.0.0:9229'
+sidekiq['listen_address'] = "0.0.0.0"
+puma['listen'] = '0.0.0.0'
+
+## The IPs of the Consul server nodes
+## You can also use FQDNs and intermix them with IPs
+consul['configuration'] = {
+   retry_join: %w({{ groups['consul'] | join(' ') }})
+}
+
+# Add the monitoring node's IP address to the monitoring whitelist and allow it to
+# scrape the NGINX metrics
+gitlab_rails['monitoring_whitelist'] = ['10.6.0.81/32', '127.0.0.0/8']
+nginx['status']['options']['allow'] = ['10.6.0.81/32', '127.0.0.0/8']
+gitlab_rails['prometheus_address'] = '10.6.0.81:9090'

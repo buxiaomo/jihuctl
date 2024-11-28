@@ -1,0 +1,12 @@
+roles ['consul_role']
+consul['monitoring_service_discovery'] =  true
+gitlab_rails['auto_migrate'] = false
+
+consul['enable'] = true
+consul['node_name'] = '{{ ansible_hostname }}'
+consul['configuration'] = {
+  server: true,
+  retry_join: %w({{ groups['consul'] | join(' ') }}),
+  bind_addr: '{{ inventory_hostname }}'
+}
+node_exporter['listen_address'] = '0.0.0.0:9100'

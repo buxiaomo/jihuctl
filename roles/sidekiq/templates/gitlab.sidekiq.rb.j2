@@ -1,0 +1,61 @@
+# https://docs.gitlab.com/omnibus/roles/#sidekiq-roles
+roles(["sidekiq_role"])
+
+# External URL
+## This should match the URL of the external load balancer
+external_url 'http://{{ groups['elb'][0] }}'
+
+# Redis
+redis['master_name'] = 'gitlab-redis'
+
+## The same password for Redis authentication you set up for the master node.
+redis['master_password'] = '{{ redis.password }}'
+
+## A list of sentinels with `host` and `port`
+gitlab_rails['redis_sentinels'] = [
+{% for host in groups['sentinel'] %}
+   {'host' => '{{ host }}', 'port' => 26379},
+{% endfor %}
+]
+
+# Gitaly Cluster
+## git_data_dirs get configured for the Praefect virtual storage
+## Address is Internal Load Balancer for Praefect
+## Token is praefect_external_token
+git_data_dirs({
+  "default" => {
+    "gitaly_address" => "tcp://{{ groups['ilb'][0] }}:2305", # internal load balancer IP
+    "gitaly_token" => '{{ auth.praefect.token }}'
+  }
+})
+
+# PostgreSQL
+gitlab_rails['db_host'] = '{{ groups['ilb'][0] }}' # internal load balancer IP
+gitlab_rails['db_port'] = 6432
+gitlab_rails['db_password'] = '{{ auth.postgres.gitlab.password }}'
+
+gitlab_rails['db_load_balancing'] = { 'hosts' => [{% for host in groups['pgbouncer'] %}'{{ host }}'{% if not loop.last %},{% endif %}{% endfor %}] } # PostgreSQL IPs
+
+## Prevent database migrations from running on upgrade automatically
+gitlab_rails['auto_migrate'] = false
+
+# Sidekiq
+sidekiq['listen_address'] = "0.0.0.0"
+
+## Set number of Sidekiq queue processes to the same number as available CPUs
+sidekiq['queue_groups'] = ['*'] * 4
+
+# Monitoring
+consul['enable'] = true
+consul['monitoring_service_discovery'] =  true
+consul['node_name'] = '{{ ansible_hostname }}'
+consul['configuration'] = {
+   retry_join: %w({{ groups['consul'] | join(' ') }})
+}
+
+## Set the network addresses that the exporters will listen on
+node_exporter['listen_address'] = '0.0.0.0:9100'
+
+## Add the monitoring node's IP address to the monitoring whitelist
+gitlab_rails['monitoring_whitelist'] = ['10.6.0.81/32', '127.0.0.0/8']
+gitlab_rails['prometheus_address'] = '10.6.0.81:9090'

@@ -1,0 +1,43 @@
+---
+# tasks file for praefect
+- name: Checking skip-auto-reconfigure file
+  ansible.builtin.stat:
+    path: /etc/gitlab/skip-auto-reconfigure
+  register: skipAutoReconfigure
+
+- name: Create configure files
+  template:
+    src: gitlab.praefect.rb.j2
+    dest: /etc/gitlab/gitlab.praefect.rb
+  register: gitlab_rb_file
+
+- name: Distribution gitlab-secrets.json file
+  ansible.builtin.copy:
+    src: /usr/local/src/gitlab-secrets.json
+    dest: /etc/gitlab/gitlab-secrets.json
+  register: gitlab_secrets_file
+
+- name: Reconfiugre service
+  shell: gitlab-ctl reconfigure
+  delegate_to: "{{ groups['praefect'][0] }}"
+  run_once: true
+  when: gitlab_rb_file.changed or gitlab_secrets_file.changed or not skipAutoReconfigure.stat.exists
+
+- name: Create skip-auto-reconfigure file
+  file:
+    path: /etc/gitlab/skip-auto-reconfigure
+    state: touch
+    mode: u=rw,g=r,o=r
+
+- name: Checking skip-auto-reconfigure file
+  ansible.builtin.stat:
+    path: /etc/gitlab/skip-auto-reconfigure
+  register: skipAutoReconfigure
+
+- name: Update configure files
+  template:
+    src: gitlab.praefect.rb.j2
+    dest: /etc/gitlab/gitlab.praefect.rb
+
+- name: Reconfiugre service
+  shell: gitlab-ctl reconfigure

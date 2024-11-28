@@ -1,0 +1,25 @@
+---
+# tasks file for postgresql
+- name: Create configure files
+  template:
+    src: gitlab.postgresql.rb.j2
+    dest: /etc/gitlab/gitlab.postgresql.rb
+  register: gitlab_rb_file
+
+- name: Distribution gitlab-secrets.json file
+  ansible.builtin.copy:
+    src: /usr/local/src/gitlab-secrets.json
+    dest: /etc/gitlab/gitlab-secrets.json
+  register: gitlab_secrets_file
+
+- name: Reconfiugre service
+  ansible.builtin.shell: gitlab-ctl reconfigure
+  when: gitlab_rb_file.changed or gitlab_secrets_file.changed
+
+- name: Waiting service
+  ansible.builtin.shell: gitlab-ctl patroni members
+  register: waiting
+  until: waiting.rc == 0 and waiting.stdout.find(ansible_hostname) != -1
+  retries: 15
+  delay: 5
+  changed_when: false

@@ -1,0 +1,70 @@
+# Disable all components except Patroni, PgBouncer and Consul
+roles(['patroni_role', 'pgbouncer_role'])
+
+# PostgreSQL configuration
+postgresql['listen_address'] = '0.0.0.0'
+
+# Sets `max_replication_slots` to double the number of database nodes.
+# Patroni uses one extra slot per node when initiating the replication.
+patroni['postgresql']['max_replication_slots'] = 6
+
+# Set `max_wal_senders` to one more than the number of replication slots in the cluster.
+# This is used to prevent replication from using up all of the
+# available database connections.
+patroni['postgresql']['max_wal_senders'] = 7
+
+# Prevent database migrations from running on upgrade automatically
+gitlab_rails['auto_migrate'] = false
+
+# Configure the Consul agent
+consul['services'] = %w(postgresql)
+## Enable service discovery for Prometheus
+consul['monitoring_service_discovery'] =  true
+
+# START user configuration
+# Please set the real values as explained in Required Information section
+#
+# Replace PGBOUNCER_PASSWORD_HASH with a generated md5 value
+postgresql['pgbouncer_user_password'] = '{{ auth.postgres.pgbouncer.md5 }}'
+# Replace POSTGRESQL_REPLICATION_PASSWORD_HASH with a generated md5 value
+postgresql['sql_replication_password'] = '{{ auth.postgres.gitlab_replicator.md5 }}'
+# Replace POSTGRESQL_PASSWORD_HASH with a generated md5 value
+postgresql['sql_user_password'] = '{{ auth.postgres.gitlab.md5 }}'
+
+# Set up basic authentication for the Patroni API (use the same username/password in all nodes).
+patroni['name'] = '{{ ansible_hostname }}'
+patroni['username'] = '{{ auth.patroni.username }}'
+patroni['password'] = '{{ auth.patroni.password }}'
+
+# Replace 10.6.0.0/24 with Network Address
+postgresql['trust_auth_cidr_addresses'] = %w(
+{% for host in groups['postgresql'] %}
+   {{ host }}/32
+{% endfor %}
+{% for host in groups['ilb'] %}
+   {{ host }}/32
+{% endfor %}
+   127.0.0.1/32
+)
+
+# Local PgBouncer service for Database Load Balancing
+pgbouncer['databases'] = {
+   gitlabhq_production: {
+      host: "127.0.0.1",
+      user: "pgbouncer",
+      password: '{{ auth.postgres.pgbouncer.md5 }}'
+   }
+}
+
+# Set the network addresses that the exporters will listen on for monitoring
+node_exporter['listen_address'] = '0.0.0.0:9100'
+postgres_exporter['listen_address'] = '0.0.0.0:9187'
+
+## The IPs of the Consul server nodes
+## You can also use FQDNs and intermix them with IPs
+consul['node_name'] = '{{ ansible_hostname }}'
+consul['configuration'] = {
+   retry_join: %w({{ groups['consul'] | join(' ') }}),
+}
+
+# END user configuration

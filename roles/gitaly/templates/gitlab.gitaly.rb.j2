@@ -1,0 +1,64 @@
+# Avoid running unnecessary services on the Gitaly server
+postgresql['enable'] = false
+redis['enable'] = false
+nginx['enable'] = false
+puma['enable'] = false
+sidekiq['enable'] = false
+gitlab_workhorse['enable'] = false
+prometheus['enable'] = false
+alertmanager['enable'] = false
+gitlab_exporter['enable'] = false
+gitlab_kas['enable'] = false
+
+# Prevent database migrations from running on upgrade automatically
+gitlab_rails['auto_migrate'] = false
+
+# Gitaly
+gitaly['enable'] = true
+
+# Configure the gitlab-shell API callback URL. Without this, `git push` will
+# fail. This can be your 'front door' GitLab URL or an internal load
+# balancer.
+{% if external_url is defined %}
+gitlab_rails['internal_api_url'] = '{{ external_url }}'
+{% else %}
+gitlab_rails['internal_api_url'] = 'http://{{ groups['elb'][0] }}'
+{% endif %}
+
+# Configure the Consul agent
+consul['enable'] = true
+## Enable service discovery for Prometheus
+consul['monitoring_service_discovery'] = true
+
+# START user configuration
+# Please set the real values as explained in Required Information section
+#
+## The IPs of the Consul server nodes
+## You can also use FQDNs and intermix them with IPs
+consul['node_name'] = '{{ ansible_hostname }}'
+consul['configuration'] = {
+   retry_join: %w({{ groups['consul'] | join(' ') }}),
+}
+
+# Set the network address that the node exporter will listen on for monitoring
+node_exporter['listen_address'] = '0.0.0.0:9100'
+
+gitaly['configuration'] = {
+   listen_addr: '0.0.0.0:8075',
+   prometheus_listen_addr: '0.0.0.0:9236',
+   auth: {
+      token: '{{ auth.praefect.token }}',
+   },
+   pack_objects_cache: {
+      enabled: true,
+   },
+   storage: [
+      {
+         name: '{{ inventory_hostname }}',
+         path: '/var/opt/gitlab/git-data',
+      },
+   ],
+}
+
+#
+# END user configuration

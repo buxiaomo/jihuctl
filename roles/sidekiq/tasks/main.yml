@@ -1,0 +1,17 @@
+---
+# tasks file for sidekiq
+- name: Create configure files
+  template:
+    src: gitlab.sidekiq.rb.j2
+    dest: /etc/gitlab/gitlab.sidekiq.rb
+  register: gitlab_rb_file
+
+- name: Distribution gitlab-secrets.json file
+  ansible.builtin.copy:
+    src: /usr/local/src/gitlab-secrets.json
+    dest: /etc/gitlab/gitlab-secrets.json
+  register: gitlab_secrets_file
+
+- name: Reconfiugre service
+  shell: gitlab-ctl reconfigure
+  when: gitlab_rb_file.changed or gitlab_secrets_file.changed
